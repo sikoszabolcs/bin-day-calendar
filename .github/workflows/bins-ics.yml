@@ -1,0 +1,39 @@
+# .github/workflows/bins-ics.yml
+# Regenerates bins.ics from the council calendar on the 1st of each month and commits it
+# when it changes. Subscribe your calendar app to the raw file URL (public repo), or import
+# the file once a year (private repo).
+#
+# Secret to set: UPRN
+
+name: bins ics
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pdfplumber requests
+      - name: build calendar
+        run: python bins_ics.py --uprn "${{ secrets.UPRN }}" -o bins.ics
+      - name: commit if changed
+        run: |
+          git config user.name "binday-bot"
+          git config user.email "binday-bot@users.noreply.github.com"
+          # ignore DTSTAMP-only changes
+          if git diff --quiet -I '^DTSTAMP:' -- bins.ics; then
+            echo "no change"
+          else
+            git add bins.ics
+            git commit -m "bins.ics: calendar updated"
+            git push
+          fi

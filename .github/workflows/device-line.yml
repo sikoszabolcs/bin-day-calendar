@@ -1,0 +1,42 @@
+# .github/workflows/binday.yml
+# Runs on the 1st of each month. Emails the schedule line only when it changes
+# (in practice once a year, when the council publishes the new calendar).
+#
+# Repository secrets to set: UPRN, EMAIL_TO, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+# For Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_PASS=an app password.
+
+name: binday calendar
+on:
+  schedule:
+    - cron: "0 7 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pdfplumber requests
+      - name: derive schedule line
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: >
+          python binday_calendar.py
+          --uprn "${{ secrets.UPRN }}"
+          --email "${{ secrets.EMAIL_TO }}"
+          --state last_line.txt
+      - name: commit state
+        run: |
+          git config user.name "binday-bot"
+          git config user.email "binday-bot@users.noreply.github.com"
+          git add last_line.txt
+          git diff --cached --quiet || git commit -m "schedule line updated" && git push
