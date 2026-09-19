@@ -29,11 +29,11 @@ jobs:
         run: |
           git config user.name "binday-bot"
           git config user.email "binday-bot@users.noreply.github.com"
-          # ignore DTSTAMP-only changes
-          if git diff --quiet -I '^DTSTAMP:' -- bins.ics; then
+          git add bins.ics
+          if git diff --cached --quiet -I '^DTSTAMP:' -- bins.ics; then
             echo "no change"
           else
-            git add bins.ics
             git commit -m "bins.ics: calendar updated"
             git push
           fi
+
